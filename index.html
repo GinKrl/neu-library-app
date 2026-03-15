@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEU Library Visitor App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+
+    <div id="login-section" class="bg-white p-8 rounded-lg shadow-md text-center">
+        <h1 class="text-2xl font-bold mb-6 text-blue-900">NEU Library Logbook</h1>
+        <button id="login-btn" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition">
+            Sign in with Institutional ID
+        </button>
+    </div>
+
+    <div id="form-section" class="hidden bg-white p-8 rounded-lg shadow-md w-96">
+        <h2 class="text-xl font-semibold mb-4 text-center">Visitor Information</h2>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium">Purpose of Visit</label>
+                <select id="purpose" class="w-full border p-2 rounded">
+                    <option value="Study">Study</option>
+                    <option value="Research">Research</option>
+                    <option value="Borrowing">Borrowing</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium">College/Department</label>
+                <select id="college" class="w-full border p-2 rounded">
+                    <option value="College of Accoutancy">College of Accountancy</option>
+                    <option value="College of Agriculture">College of Agriculture</option>
+                    <option value="College of Arts and Sciences">College of Arts and Sciences</option>
+                    <option value="College of Business Adminstration">College of Business Administration</option>
+                    <option value="College of Business Communication">College of Communication</option>
+                    <option value="College of Informatics and Computing Studies">College of Informatics and Computing Studies</option>
+                    <option value="College of Criminology">College of Criminology</option>
+                    <option value="College of Education">College of Education</option>
+                    <option value="College of Engineering and Architecture">College of Engineering and Architecture</option>
+                    <option value="College of Medical Technology">College of Medical Technology</option>
+                    <option value="College of Midwifery">College of Midwifery</option>
+                    <option value="College of Music">College of Music</option>
+                    <option value="College of Nursing">College of Nursing</option>
+                    <option value="College of Physical Therapy">College of Physical Therapy</option>
+                    <option value="College of Respiratory Therapy">College of Respiratory Therapy</option>
+                    <option value="School of International Relations">School of International Relations</option>
+                </select>
+            </div>
+            <button id="submit-btn" class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700">
+                Submit Check-in
+            </button>
+        </div>
+    </div>
+
+    <div id="success-section" class="hidden bg-green-100 border border-green-500 p-8 rounded-lg text-center">
+        <h2 class="text-3xl font-bold text-green-700 mb-2">Success!</h2>
+        <p class="text-xl text-green-800">Welcome to NEU Library!</p>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
