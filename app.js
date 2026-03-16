@@ -1,6 +1,6 @@
 // 1. Import Firebase from Web (CDN)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { getFirestore, collection, doc, getDoc, setDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 // 2. Your Firebase Configuration
@@ -24,83 +24,98 @@ const db = getFirestore(app);
 const loginSection = document.getElementById('login-section');
 const formSection = document.getElementById('form-section');
 const successSection = document.getElementById('success-section');
+const adminLink = document.getElementById('admin-link'); 
+let errorMessage = document.getElementById('error-message');
 let currentUser = null;
 
-// 5. Login Function with Profile Creation & Block Check
-window.loginWithGoogle = async () => {
-    try {
-        const result = await signInWithPopup(auth, provider);
-        const user = result.user;
+// 5. THE CORE ROUTING LOGIC
+async function handleUserRouting(user) {
+    if (errorMessage) errorMessage.classList.add('hidden');
 
-        // Requirement: Domain Check
-        if (!user.email.endsWith("@neu.edu.ph")) {
-            alert("Non-institutional emails are rejected.");
+    // STRICT DOMAIN CHECK (Red Error Sign logic)
+    if (!user.email.endsWith("@neu.edu.ph")) {
+        if (!errorMessage) {
+            errorMessage = document.createElement('div');
+            errorMessage.id = 'error-message';
+            errorMessage.className = 'mt-4 p-3 bg-red-100 border border-red-400 text-red-700 text-sm rounded';
+            loginSection.appendChild(errorMessage);
+        }
+        errorMessage.innerText = "Access Denied! Please use your @neu.edu.ph institutional email.";
+        errorMessage.classList.remove('hidden');
+        await auth.signOut();
+        return;
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const isUserMode = urlParams.get('mode') === 'user';
+
+    // Database Check
+    const userRef = doc(db, "users", user.uid);
+    const userSnap = await getDoc(userRef);
+    let userRole = 'user';
+
+    if (userSnap.exists()) {
+        const userData = userSnap.data();
+        userRole = userData.role;
+        if (userData.isBlocked) {
+            alert("This account has been blocked by an Admin.");
             await auth.signOut();
             return;
         }
+    } else {
+        const adminEmails = ["jcesperanza@neu.edu.ph", "giankarl.minglana@neu.edu.ph"];
+        userRole = adminEmails.includes(user.email) ? 'admin' : 'user';
+        await setDoc(userRef, { uid: user.uid, email: user.email, displayName: user.displayName, role: userRole, isBlocked: false, createdAt: serverTimestamp() });
+    }
 
-        // Requirement: Check Firestore users collection
-        const userRef = doc(db, "users", user.uid);
-        const userSnap = await getDoc(userRef);
+    // REDIRECT TO ADMIN ONLY IF: Not in Switch Mode
+    if (userRole === 'admin' && !isUserMode) {
+        window.location.href = "admin.html";
+        return;
+    }
 
-        if (userSnap.exists()) {
-            const userData = userSnap.data();
-            
-            // Requirement: Check if user is blocked
-            if (userData.isBlocked) {
-                alert("Access Denied! Your account has been blocked by an Admin.");
-                await auth.signOut();
-                return;
-            }
+    // SHOW VISITOR FORM
+    currentUser = user;
+    loginSection.classList.add('hidden');
+    formSection.classList.remove('hidden');
+    if (userRole === 'admin' && adminLink) adminLink.classList.remove('hidden');
+}
 
-            // Route Admin directly to Dashboard
-            if (userData.role === 'admin') {
-                window.location.href = "admin.html";
-                return;
-            }
-        } else {
-            // First time login: Create the user profile in Firestore
-            await setDoc(userRef, {
-                uid: user.uid,
-                email: user.email,
-                displayName: user.displayName,
-                role: 'user', // Default role is normal user
-                isBlocked: false,
-                createdAt: serverTimestamp()
-            });
-        }
+// 6. THE AUTO-SKIPPER: Runs when page opens
+onAuthStateChanged(auth, (user) => {
+    const urlParams = new URLSearchParams(window.location.search);
+    // If logged in and URL says mode=user, skip the login UI and show the form
+    if (user && urlParams.get('mode') === 'user') {
+        handleUserRouting(user);
+    }
+});
 
-        // If normal user and not blocked, show the Check-in Form
-        currentUser = user;
-        loginSection.classList.add('hidden');
-        formSection.classList.remove('hidden');
-
+// 7. Manual Login Function
+window.loginWithGoogle = async () => {
+    try {
+        const result = await signInWithPopup(auth, provider);
+        await handleUserRouting(result.user);
     } catch (err) {
         console.error(err);
-        alert("Login error: " + err.message);
     }
 };
 
-// 6. Submit Check-in
+// 8. Submit Check-in
 document.getElementById('submit-btn').addEventListener('click', async () => {
-    const purpose = document.getElementById('purpose').value;
-    const college = document.getElementById('college').value;
-
+    if (!currentUser) return;
     try {
         await addDoc(collection(db, "visits"), {
             userId: currentUser.uid,
             email: currentUser.email,
-            purposeOfVisit: purpose,
-            college: college,
+            purposeOfVisit: document.getElementById('purpose').value,
+            college: document.getElementById('college').value,
             timestamp: serverTimestamp()
         });
-
         formSection.classList.add('hidden');
         successSection.classList.remove('hidden');
     } catch (e) {
-        alert("Error during check-in: " + e.message);
+        alert("Error: " + e.message);
     }
 });
 
-// 7. Attach events
 document.getElementById('login-btn').addEventListener('click', loginWithGoogle);
