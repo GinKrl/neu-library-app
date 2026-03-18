@@ -103,11 +103,24 @@ function renderDashboard() {
         const isBlocked = userStatusCache[v.userId] || false;
         const time = v.timestamp ? v.timestamp.toDate().toLocaleString() : 'N/A';
         
+        // Color coding for different user types
+        let typeColor = 'bg-gray-100 text-gray-800'; // Default gray for unknown
+        if (v.userType === 'Student') typeColor = 'bg-blue-100 text-blue-800';
+        if (v.userType === 'Teacher') typeColor = 'bg-purple-100 text-purple-800';
+        if (v.userType === 'Staff') typeColor = 'bg-orange-100 text-orange-800';
+        
+        const displayType = v.userType || 'N/A'; // For old visits before we added this
+
         const tr = document.createElement('tr');
         tr.className = `border-b transition ${isBlocked ? 'bg-red-50' : 'hover:bg-gray-50'}`;
         tr.innerHTML = `
             <td class="px-4 py-3">${time}</td>
             <td class="px-4 py-3 text-blue-600 font-medium">${v.email}</td>
+            <td class="px-4 py-3">
+                <span class="px-2 py-1 rounded text-xs font-bold ${typeColor}">
+                    ${displayType}
+                </span>
+            </td>
             <td class="px-4 py-3">${v.college || 'N/A'}</td>
             <td class="px-4 py-3">${v.purposeOfVisit || v.purpose || 'N/A'}</td>
             <td class="px-4 py-3">
@@ -132,7 +145,8 @@ window.toggleBlock = async (uid, currentStatus) => {
         text: `Do you want to ${action} this user?`,
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: currentStatus ? '#d33' : '#d33',
+        // Green (#22c55e) for Unblock, Red (#d33) for Block
+        confirmButtonColor: currentStatus ? '#22c55e' : '#d33',
         cancelButtonColor: '#3085d6',
         confirmButtonText: `Yes, ${action} them!`
     });
