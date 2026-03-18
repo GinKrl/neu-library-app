@@ -132,7 +132,7 @@ window.toggleBlock = async (uid, currentStatus) => {
         text: `Do you want to ${action} this user?`,
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: currentStatus ? '#6b7280' : '#d33',
+        confirmButtonColor: currentStatus ? '#d33' : '#d33',
         cancelButtonColor: '#3085d6',
         confirmButtonText: `Yes, ${action} them!`
     });
