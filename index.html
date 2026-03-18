@@ -23,6 +23,17 @@
         
         <h2 class="text-xl font-semibold mb-4 text-center">Visitor Information</h2>
         <div class="space-y-4">
+            
+            <div>
+                <label class="block text-sm font-medium">User Type</label>
+                <select id="userType" class="w-full border p-2 rounded">
+                    <option value="" disabled selected>Select user type...</option>
+                    <option value="Student">Student</option>
+                    <option value="Teacher">Teacher</option>
+                    <option value="Staff">Staff</option>
+                </select>
+            </div>
+            
             <div>
                 <label class="block text-sm font-medium">Purpose of Visit</label>
                 <select id="purpose" class="w-full border p-2 rounded">
@@ -31,6 +42,7 @@
                     <option value="Borrowing">Borrowing</option>
                 </select>
             </div>
+            
             <div>
                 <label class="block text-sm font-medium">College/Department</label>
                 <select id="college" class="w-full border p-2 rounded">
@@ -52,6 +64,7 @@
                     <option value="School of International Relations">School of International Relations</option>
                 </select>
             </div>
+            
             <button id="submit-btn" class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700">
                 Submit Check-in
             </button>
@@ -63,13 +76,13 @@
     </div>
 
     <div id="success-section" class="hidden bg-[#e6ffed] border border-[#4ade80] p-8 rounded-lg text-center w-96 max-w-full mx-auto mt-10">
-    <h2 class="text-2xl font-bold text-[#166534] mb-2">Success!</h2>
-    <p class="text-[16px] text-[#166534]">Welcome to NEU Library!</p>
-    
-    <a id="admin-link-success" href="admin.html" class="hidden text-center text-sm text-[#15803d] font-bold hover:underline mt-6 block cursor-pointer">
-        Switch back to Admin Dashboard &rarr;
-    </a>
-</div>
+        <h2 class="text-2xl font-bold text-[#166534] mb-2">Success!</h2>
+        <p class="text-[16px] text-[#166534]">Welcome to NEU Library!</p>
+        
+        <a id="admin-link-success" href="admin.html" class="hidden text-center text-sm text-[#15803d] font-bold hover:underline mt-6 block cursor-pointer">
+            Switch back to Admin Dashboard &rarr;
+        </a>
+    </div>
 
     <script type="module" src="app.js"></script>
 </body>
