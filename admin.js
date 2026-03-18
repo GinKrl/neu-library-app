@@ -112,7 +112,7 @@ function renderDashboard() {
             <td class="px-4 py-3">${v.purposeOfVisit || v.purpose || 'N/A'}</td>
             <td class="px-4 py-3">
                 <button onclick="toggleBlock('${v.userId}', ${isBlocked})" 
-                    class="px-3 py-1 rounded text-sm font-bold transition ${isBlocked ? 'bg-gray-500 text-white hover:bg-gray-600' : 'bg-red-100 text-red-600 hover:bg-red-200'}">
+                    class="px-3 py-1 rounded text-sm font-bold transition ${isBlocked ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-red-100 text-red-600 hover:bg-red-200'}">
                     ${isBlocked ? 'Unblock' : 'Block'}
                 </button>
             </td>
