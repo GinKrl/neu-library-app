@@ -25,7 +25,6 @@ const topPurposeEl = document.getElementById('top-purpose-name');
 
 let allVisits = [];
 
-// AUTH PROTECTION
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
         window.location.href = "index.html"; 
@@ -45,24 +44,28 @@ async function loadVisits() {
         const querySnapshot = await getDocs(q);
         allVisits = [];
         querySnapshot.forEach((doc) => { 
-            allVisits.push({ id: doc.id, ...doc.data() }); 
+            const data = doc.data();
+            // Ensure data exists before pushing
+            if (data.email) {
+                allVisits.push({ id: doc.id, ...data }); 
+            }
         });
         renderDashboard();
     } catch (error) {
-        console.error(error);
+        console.error("Firebase Error:", error);
         tableBody.innerHTML = `<tr><td colspan="5" class="text-center text-red-500 py-4">Error loading data.</td></tr>`;
     }
 }
 
 function renderDashboard() {
-    const searchTerm = searchInput.value.toLowerCase();
+    const searchTerm = (searchInput.value || "").toLowerCase();
     const filterDate = dateFilter.value;
     const now = new Date();
 
-    // 1. Filter the data based on Search and Date
+    // 1. Filter Logic
     let filteredVisits = allVisits.filter(visit => {
-        const email = visit.email || "";
-        const matchesSearch = email.toLowerCase().includes(searchTerm);
+        const email = (visit.email || "").toLowerCase();
+        const matchesSearch = email.includes(searchTerm);
         let matchesDate = true;
         
         if (visit.timestamp && filterDate !== 'all') {
@@ -79,40 +82,42 @@ function renderDashboard() {
         return matchesSearch && matchesDate;
     });
 
-    // 2. Update Total Count
+    // 2. Update Total Visits
     totalVisitsEl.innerText = filteredVisits.length;
 
-    // 3. Tally Colleges and Purposes for Stats Cards
+    // 3. Tally logic for Top College and Top Purpose
     const collegeCounts = {};
     const purposeCounts = {};
 
     filteredVisits.forEach(visit => {
-        const col = visit.college || "N/A";
-        collegeCounts[col] = (collegeCounts[col] || 0) + 1;
+        // Clean up string data to avoid "Study" vs "study" issues
+        const col = (visit.college || "Unknown").trim();
+        const purp = (visit.purposeOfVisit || "Unknown").trim();
 
-        const purp = visit.purposeOfVisit || "N/A";
-        purposeCounts[purp] = (purposeCounts[purp] || 0) + 1;
+        if (col !== "Unknown") collegeCounts[col] = (collegeCounts[col] || 0) + 1;
+        if (purp !== "Unknown") purposeCounts[purp] = (purposeCounts[purp] || 0) + 1;
     });
 
-    // Helper to find the key with the highest value
-    const getTop = (obj) => {
+    const findWinner = (obj) => {
         const keys = Object.keys(obj);
         if (keys.length === 0) return "-";
+        // Sort keys by their count values and take the highest
         return keys.reduce((a, b) => obj[a] > obj[b] ? a : b);
     };
 
-    topCollegeEl.innerText = getTop(collegeCounts);
-    topPurposeEl.innerText = getTop(purposeCounts);
+    // Update Cards
+    topCollegeEl.innerText = findWinner(collegeCounts);
+    topPurposeEl.innerText = findWinner(purposeCounts);
 
-    // 4. Render Table
+    // 4. Render Table Rows
     tableBody.innerHTML = '';
     if (filteredVisits.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4">No records found.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4">No matching records.</td></tr>`;
         return;
     }
 
     filteredVisits.forEach((visit) => {
-        const dateStr = visit.timestamp ? visit.timestamp.toDate().toLocaleString() : 'Just now';
+        const dateStr = visit.timestamp ? visit.timestamp.toDate().toLocaleString() : 'N/A';
         const tr = document.createElement('tr');
         tr.className = "border-b hover:bg-gray-50 transition";
         tr.innerHTML = `
@@ -136,26 +141,21 @@ document.getElementById('logout-btn').addEventListener('click', () => {
     signOut(auth).then(() => { window.location.href = "index.html"; });
 });
 
-// Global function for the Block button
 window.toggleBlockStatus = async (userId) => {
     if(!userId || userId === 'undefined') {
-        alert("User ID not found for this record.");
+        alert("Error: User ID is missing for this record.");
         return;
     }
-    if(!confirm("Are you sure you want to toggle the block status for this user?")) return;
-    
+    if(!confirm("Toggle block status for this user?")) return;
     try {
         const userRef = doc(db, "users", userId);
         const userSnap = await getDoc(userRef);
         if(userSnap.exists()) {
-            const currentStatus = userSnap.data().isBlocked || false;
-            await updateDoc(userRef, { isBlocked: !currentStatus });
-            alert(`User has been ${!currentStatus ? 'BLOCKED' : 'UNBLOCKED'}.`);
+            const current = userSnap.data().isBlocked || false;
+            await updateDoc(userRef, { isBlocked: !current });
+            alert("Account status updated!");
         } else {
-            alert("User record does not exist in the database.");
+            alert("User profile not found in database.");
         }
-    } catch(e) { 
-        console.error(e);
-        alert("Error updating status: " + e.message); 
-    }
+    } catch(e) { alert(e.message); }
 };
