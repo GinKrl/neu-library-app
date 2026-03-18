@@ -45,7 +45,6 @@ async function loadVisits() {
         allVisits = [];
         querySnapshot.forEach((doc) => { 
             const data = doc.data();
-            // Ensure data exists before pushing
             if (data.email) {
                 allVisits.push({ id: doc.id, ...data }); 
             }
@@ -62,7 +61,6 @@ function renderDashboard() {
     const filterDate = dateFilter.value;
     const now = new Date();
 
-    // 1. Filter Logic
     let filteredVisits = allVisits.filter(visit => {
         const email = (visit.email || "").toLowerCase();
         const matchesSearch = email.includes(searchTerm);
@@ -82,15 +80,14 @@ function renderDashboard() {
         return matchesSearch && matchesDate;
     });
 
-    // 2. Update Total Visits
     totalVisitsEl.innerText = filteredVisits.length;
 
-    // 3. Tally logic for Top College and Top Purpose
+    // --- CRITICAL FIX FOR TALLYING ---
     const collegeCounts = {};
     const purposeCounts = {};
 
     filteredVisits.forEach(visit => {
-        // Clean up string data to avoid "Study" vs "study" issues
+        // Ensure we use 'purposeOfVisit' to match app.js
         const col = (visit.college || "Unknown").trim();
         const purp = (visit.purposeOfVisit || "Unknown").trim();
 
@@ -101,15 +98,12 @@ function renderDashboard() {
     const findWinner = (obj) => {
         const keys = Object.keys(obj);
         if (keys.length === 0) return "-";
-        // Sort keys by their count values and take the highest
         return keys.reduce((a, b) => obj[a] > obj[b] ? a : b);
     };
 
-    // Update Cards
     topCollegeEl.innerText = findWinner(collegeCounts);
     topPurposeEl.innerText = findWinner(purposeCounts);
 
-    // 4. Render Table Rows
     tableBody.innerHTML = '';
     if (filteredVisits.length === 0) {
         tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4">No matching records.</td></tr>`;
@@ -133,7 +127,6 @@ function renderDashboard() {
     });
 }
 
-// Event Listeners
 searchInput.addEventListener('input', renderDashboard);
 dateFilter.addEventListener('change', renderDashboard);
 
