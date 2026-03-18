@@ -22,7 +22,7 @@ const topCollegeEl = document.getElementById('top-college-name');
 const topPurposeEl = document.getElementById('top-purpose-name');
 
 let allVisits = [];
-let userStatusCache = {}; // Stores { userId: isBlocked }
+let userStatusCache = {}; 
 
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
@@ -39,13 +39,11 @@ onAuthStateChanged(auth, async (user) => {
 
 async function loadData() {
     try {
-        // 1. Fetch all users first to know who is blocked
         const userSnap = await getDocs(collection(db, "users"));
         userSnap.forEach(doc => {
             userStatusCache[doc.id] = doc.data().isBlocked || false;
         });
 
-        // 2. Fetch visits
         const q = query(collection(db, "visits"), orderBy("timestamp", "desc"));
         const querySnapshot = await getDocs(q);
         allVisits = [];
@@ -59,8 +57,12 @@ async function loadData() {
 }
 
 function renderDashboard() {
-    const searchTerm = (document.getElementById('search-input').value || "").toLowerCase();
-    const filterDate = document.getElementById('date-filter').value;
+    const searchInput = document.getElementById('search-input');
+    const dateFilter = document.getElementById('date-filter');
+    if(!searchInput || !dateFilter) return; // Prevent crashes if elements are missing
+
+    const searchTerm = searchInput.value.toLowerCase();
+    const filterDate = dateFilter.value;
     const now = new Date();
 
     let filtered = allVisits.filter(v => {
@@ -82,8 +84,8 @@ function renderDashboard() {
     const purposeMap = {};
 
     filtered.forEach(v => {
-        const pValue = v.purposeOfVisit || v.purpose || "Unknown";
-        const cValue = v.college || "Unknown";
+        const pValue = v.purposeOfVisit || v.purpose || v.Purpose || "Unknown";
+        const cValue = v.college || v.College || v.department || "Unknown";
         if (cValue !== "Unknown") collegeMap[cValue] = (collegeMap[cValue] || 0) + 1;
         if (pValue !== "Unknown") purposeMap[pValue] = (purposeMap[pValue] || 0) + 1;
     });
@@ -102,15 +104,15 @@ function renderDashboard() {
         const time = v.timestamp ? v.timestamp.toDate().toLocaleString() : 'N/A';
         
         const tr = document.createElement('tr');
-        tr.className = "border-b hover:bg-gray-50";
+        tr.className = `border-b transition ${isBlocked ? 'bg-red-50' : 'hover:bg-gray-50'}`;
         tr.innerHTML = `
             <td class="px-4 py-3">${time}</td>
             <td class="px-4 py-3 text-blue-600 font-medium">${v.email}</td>
             <td class="px-4 py-3">${v.college || 'N/A'}</td>
-            <td class="px-4 py-3">${v.purposeOfVisit || 'N/A'}</td>
+            <td class="px-4 py-3">${v.purposeOfVisit || v.purpose || 'N/A'}</td>
             <td class="px-4 py-3">
                 <button onclick="toggleBlock('${v.userId}', ${isBlocked})" 
-                    class="px-3 py-1 rounded text-sm font-bold transition ${isBlocked ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-red-100 text-red-600 hover:bg-red-200'}">
+                    class="px-3 py-1 rounded text-sm font-bold transition ${isBlocked ? 'bg-gray-500 text-white hover:bg-gray-600' : 'bg-red-100 text-red-600 hover:bg-red-200'}">
                     ${isBlocked ? 'Unblock' : 'Block'}
                 </button>
             </td>
@@ -124,7 +126,7 @@ window.toggleBlock = async (uid, currentStatus) => {
 
     const action = currentStatus ? "unblock" : "block";
     
-    // Modern Centered Pop-up
+    // Trigger the centered SweetAlert pop-up
     const result = await Swal.fire({
         title: `Are you sure?`,
         text: `Do you want to ${action} this user?`,
@@ -139,7 +141,6 @@ window.toggleBlock = async (uid, currentStatus) => {
         try {
             await updateDoc(doc(db, "users", uid), { isBlocked: !currentStatus });
             
-            // Update local cache and UI immediately
             userStatusCache[uid] = !currentStatus;
             renderDashboard();
 
@@ -156,7 +157,10 @@ window.toggleBlock = async (uid, currentStatus) => {
     }
 };
 
-// Listeners
-document.getElementById('search-input').addEventListener('input', renderDashboard);
-document.getElementById('date-filter').addEventListener('change', renderDashboard);
-document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
+const searchInput = document.getElementById('search-input');
+const dateFilter = document.getElementById('date-filter');
+const logoutBtn = document.getElementById('logout-btn');
+
+if(searchInput) searchInput.addEventListener('input', renderDashboard);
+if(dateFilter) dateFilter.addEventListener('change', renderDashboard);
+if(logoutBtn) logoutBtn.addEventListener('click', () => signOut(auth));
