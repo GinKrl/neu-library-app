@@ -1,123 +1,112 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { getFirestore, collection, getDocs, query, orderBy, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { getFirestore, collection, doc, getDoc, setDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-// Use the config from your file
 const firebaseConfig = {
-  apiKey: "AIzaSyBkManpN_uZ9e0DISxh1WP33CTjM0GLCD4",
-  authDomain: "neu-library-app-7d93d.firebaseapp.com",
-  projectId: "neu-library-app-7d93d",
-  storageBucket: "neu-library-app-7d93d.firebasestorage.app",
-  messagingSenderId: "516402250312",
-  appId: "1:516402250312:web:72bda33a5fad4ecfc38e7d",
-  measurementId: "G-LLBHKXZEW5"
+    apiKey: "AIzaSyBkManpN_uZ9e0DISxh1WP33CTjM0GLCD4",
+    authDomain: "neu-library-app-7d93d.firebaseapp.com",
+    projectId: "neu-library-app-7d93d",
+    storageBucket: "neu-library-app-7d93d.firebasestorage.app",
+    messagingSenderId: "516402250312",
+    appId: "1:516402250312:web:72bda33a5fad4ecfc38e7d",
+    measurementId: "G-LLBHKXZEW5"
 };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
 const db = getFirestore(app);
 
-const tableBody = document.getElementById('visits-table-body');
-const totalVisitsEl = document.getElementById('total-visits-count');
-const topCollegeEl = document.getElementById('top-college-name');
-const topPurposeEl = document.getElementById('top-purpose-name');
+const loginSection = document.getElementById('login-section');
+const formSection = document.getElementById('form-section');
+const successSection = document.getElementById('success-section');
+const adminLink = document.getElementById('admin-link'); 
+let errorMessage = document.getElementById('error-message');
+let currentUser = null;
 
-let allVisits = [];
+async function handleUserRouting(user) {
+    if (errorMessage) errorMessage.classList.add('hidden');
 
-onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-        window.location.href = "index.html"; 
-    } else {
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        if(userDoc.exists() && userDoc.data().role === 'admin') {
-            loadVisits(); 
-        } else {
-            window.location.href = "index.html";
+    if (!user.email.endsWith("@neu.edu.ph")) {
+        if (!errorMessage) {
+            errorMessage = document.createElement('div');
+            errorMessage.id = 'error-message';
+            errorMessage.className = 'mt-4 p-3 bg-red-100 border border-red-400 text-red-700 text-sm rounded';
+            loginSection.appendChild(errorMessage);
         }
+        errorMessage.innerText = "Access Denied! Please use your @neu.edu.ph institutional email.";
+        errorMessage.classList.remove('hidden');
+        await auth.signOut();
+        return;
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const isUserMode = urlParams.get('mode') === 'user';
+
+    const userRef = doc(db, "users", user.uid);
+    const userSnap = await getDoc(userRef);
+    let userRole = 'user';
+
+    if (userSnap.exists()) {
+        const userData = userSnap.data();
+        userRole = userData.role;
+        if (userData.isBlocked) {
+            alert("This account has been blocked by an Admin.");
+            await auth.signOut();
+            return;
+        }
+    } else {
+        const adminEmails = ["jcesperanza@neu.edu.ph", "giankarl.minglana@neu.edu.ph"];
+        userRole = adminEmails.includes(user.email) ? 'admin' : 'user';
+        await setDoc(userRef, { uid: user.uid, email: user.email, displayName: user.displayName, role: userRole, isBlocked: false, createdAt: serverTimestamp() });
+    }
+
+    if (userRole === 'admin' && !isUserMode) {
+        window.location.href = "admin.html";
+        return;
+    }
+
+    currentUser = user;
+    if(loginSection) loginSection.classList.add('hidden');
+    if(formSection) formSection.classList.remove('hidden');
+    if (userRole === 'admin' && adminLink) adminLink.classList.remove('hidden');
+}
+
+onAuthStateChanged(auth, (user) => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (user && urlParams.get('mode') === 'user') {
+        handleUserRouting(user);
     }
 });
 
-async function loadVisits() {
+window.loginWithGoogle = async () => {
     try {
-        const q = query(collection(db, "visits"), orderBy("timestamp", "desc"));
-        const querySnapshot = await getDocs(q);
-        allVisits = [];
-        querySnapshot.forEach((doc) => {
-            allVisits.push({ id: doc.id, ...doc.data() });
-        });
-        renderDashboard();
-    } catch (error) {
-        console.error("Fetch Error:", error);
+        const result = await signInWithPopup(auth, provider);
+        await handleUserRouting(result.user);
+    } catch (err) {
+        console.error(err);
     }
-}
-
-function renderDashboard() {
-    const searchTerm = (document.getElementById('search-input').value || "").toLowerCase();
-    const filterDate = document.getElementById('date-filter').value;
-    const now = new Date();
-
-    let filtered = allVisits.filter(v => {
-        const email = (v.email || "").toLowerCase();
-        const matchesSearch = email.includes(searchTerm);
-        let matchesDate = true;
-        if (v.timestamp && filterDate !== 'all') {
-            const vDate = v.timestamp.toDate();
-            if (filterDate === 'today') matchesDate = vDate.toDateString() === now.toDateString();
-            else if (filterDate === 'week') matchesDate = vDate >= new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            else if (filterDate === 'month') matchesDate = vDate.getMonth() === now.getMonth();
-        }
-        return matchesSearch && matchesDate;
-    });
-
-    totalVisitsEl.innerText = filtered.length;
-
-    // --- SMART TALLYING ---
-    const collegeMap = {};
-    const purposeMap = {};
-
-    filtered.forEach(v => {
-        // This line checks for ANY variation of the "purpose" field name
-        const pValue = v.purposeOfVisit || v.purpose || v.Purpose || "Unknown";
-        const cValue = v.college || v.College || v.department || "Unknown";
-
-        if (cValue !== "Unknown") collegeMap[cValue] = (collegeMap[cValue] || 0) + 1;
-        if (pValue !== "Unknown") purposeMap[pValue] = (purposeMap[pValue] || 0) + 1;
-    });
-
-    const getTop = (map) => {
-        const keys = Object.keys(map);
-        return keys.length > 0 ? keys.reduce((a, b) => map[a] > map[b] ? a : b) : "-";
-    };
-
-    topCollegeEl.innerText = getTop(collegeMap);
-    topPurposeEl.innerText = getTop(purposeMap);
-
-    // --- TABLE RENDER ---
-    tableBody.innerHTML = '';
-    filtered.forEach(v => {
-        const time = v.timestamp ? v.timestamp.toDate().toLocaleString() : 'N/A';
-        const tr = document.createElement('tr');
-        tr.className = "border-b hover:bg-gray-50";
-        tr.innerHTML = `
-            <td class="px-4 py-3">${time}</td>
-            <td class="px-4 py-3 text-blue-600">${v.email}</td>
-            <td class="px-4 py-3">${v.college || v.College || 'N/A'}</td>
-            <td class="px-4 py-3">${v.purposeOfVisit || v.purpose || 'N/A'}</td>
-            <td class="px-4 py-3">
-                <button onclick="toggleBlock('${v.userId}')" class="text-red-600 font-bold">Block</button>
-            </td>
-        `;
-        tableBody.appendChild(tr);
-    });
-}
-
-// Listeners
-document.getElementById('search-input').addEventListener('input', renderDashboard);
-document.getElementById('date-filter').addEventListener('change', renderDashboard);
-document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
-
-window.toggleBlock = async (uid) => {
-    if(!uid || !confirm("Block user?")) return;
-    await updateDoc(doc(db, "users", uid), { isBlocked: true });
-    alert("User Blocked");
 };
+
+const submitBtn = document.getElementById('submit-btn');
+if(submitBtn) {
+    submitBtn.addEventListener('click', async () => {
+        if (!currentUser) return;
+        try {
+            await addDoc(collection(db, "visits"), {
+                userId: currentUser.uid,
+                email: currentUser.email,
+                purposeOfVisit: document.getElementById('purpose').value,
+                college: document.getElementById('college').value,
+                timestamp: serverTimestamp()
+            });
+            formSection.classList.add('hidden');
+            successSection.classList.remove('hidden');
+        } catch (e) {
+            alert("Error: " + e.message);
+        }
+    });
+}
+
+const loginBtn = document.getElementById('login-btn');
+if(loginBtn) loginBtn.addEventListener('click', loginWithGoogle);
