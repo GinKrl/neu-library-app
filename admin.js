@@ -44,9 +44,12 @@ async function loadVisits() {
         const q = query(collection(db, "visits"), orderBy("timestamp", "desc"));
         const querySnapshot = await getDocs(q);
         allVisits = [];
-        querySnapshot.forEach((doc) => { allVisits.push({ id: doc.id, ...doc.data() }); });
+        querySnapshot.forEach((doc) => { 
+            allVisits.push({ id: doc.id, ...doc.data() }); 
+        });
         renderDashboard();
     } catch (error) {
+        console.error(error);
         tableBody.innerHTML = `<tr><td colspan="5" class="text-center text-red-500 py-4">Error loading data.</td></tr>`;
     }
 }
@@ -56,22 +59,58 @@ function renderDashboard() {
     const filterDate = dateFilter.value;
     const now = new Date();
 
+    // 1. Filter the data based on Search and Date
     let filteredVisits = allVisits.filter(visit => {
-        const matchesSearch = visit.email.toLowerCase().includes(searchTerm);
+        const email = visit.email || "";
+        const matchesSearch = email.toLowerCase().includes(searchTerm);
         let matchesDate = true;
+        
         if (visit.timestamp && filterDate !== 'all') {
             const visitDate = visit.timestamp.toDate();
-            if (filterDate === 'today') matchesDate = visitDate.toDateString() === now.toDateString();
-            else if (filterDate === 'week') matchesDate = visitDate >= new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            else if (filterDate === 'month') matchesDate = visitDate.getMonth() === now.getMonth();
+            if (filterDate === 'today') {
+                matchesDate = visitDate.toDateString() === now.toDateString();
+            } else if (filterDate === 'week') {
+                const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                matchesDate = visitDate >= weekAgo;
+            } else if (filterDate === 'month') {
+                matchesDate = visitDate.getMonth() === now.getMonth() && visitDate.getFullYear() === now.getFullYear();
+            }
         }
         return matchesSearch && matchesDate;
     });
 
+    // 2. Update Total Count
     totalVisitsEl.innerText = filteredVisits.length;
-    const getTop = (obj) => Object.keys(obj).length === 0 ? "-" : Object.keys(obj).reduce((a, b) => obj[a] > obj[b] ? a : b);
-    
+
+    // 3. Tally Colleges and Purposes for Stats Cards
+    const collegeCounts = {};
+    const purposeCounts = {};
+
+    filteredVisits.forEach(visit => {
+        const col = visit.college || "N/A";
+        collegeCounts[col] = (collegeCounts[col] || 0) + 1;
+
+        const purp = visit.purposeOfVisit || "N/A";
+        purposeCounts[purp] = (purposeCounts[purp] || 0) + 1;
+    });
+
+    // Helper to find the key with the highest value
+    const getTop = (obj) => {
+        const keys = Object.keys(obj);
+        if (keys.length === 0) return "-";
+        return keys.reduce((a, b) => obj[a] > obj[b] ? a : b);
+    };
+
+    topCollegeEl.innerText = getTop(collegeCounts);
+    topPurposeEl.innerText = getTop(purposeCounts);
+
+    // 4. Render Table
     tableBody.innerHTML = '';
+    if (filteredVisits.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4">No records found.</td></tr>`;
+        return;
+    }
+
     filteredVisits.forEach((visit) => {
         const dateStr = visit.timestamp ? visit.timestamp.toDate().toLocaleString() : 'Just now';
         const tr = document.createElement('tr');
@@ -79,8 +118,8 @@ function renderDashboard() {
         tr.innerHTML = `
             <td class="px-4 py-3">${dateStr}</td>
             <td class="px-4 py-3 font-medium text-blue-600">${visit.email}</td>
-            <td class="px-4 py-3">${visit.college}</td>
-            <td class="px-4 py-3">${visit.purposeOfVisit}</td>
+            <td class="px-4 py-3">${visit.college || 'N/A'}</td>
+            <td class="px-4 py-3">${visit.purposeOfVisit || 'N/A'}</td>
             <td class="px-4 py-3">
                 <button onclick="toggleBlockStatus('${visit.userId}')" class="bg-red-100 text-red-600 px-3 py-1 rounded text-sm hover:bg-red-200 font-bold">Block</button>
             </td>
@@ -89,6 +128,7 @@ function renderDashboard() {
     });
 }
 
+// Event Listeners
 searchInput.addEventListener('input', renderDashboard);
 dateFilter.addEventListener('change', renderDashboard);
 
@@ -96,14 +136,26 @@ document.getElementById('logout-btn').addEventListener('click', () => {
     signOut(auth).then(() => { window.location.href = "index.html"; });
 });
 
+// Global function for the Block button
 window.toggleBlockStatus = async (userId) => {
-    if(!confirm("Toggle block status?")) return;
+    if(!userId || userId === 'undefined') {
+        alert("User ID not found for this record.");
+        return;
+    }
+    if(!confirm("Are you sure you want to toggle the block status for this user?")) return;
+    
     try {
         const userRef = doc(db, "users", userId);
         const userSnap = await getDoc(userRef);
         if(userSnap.exists()) {
-            await updateDoc(userRef, { isBlocked: !userSnap.data().isBlocked });
-            alert("Status Updated!");
+            const currentStatus = userSnap.data().isBlocked || false;
+            await updateDoc(userRef, { isBlocked: !currentStatus });
+            alert(`User has been ${!currentStatus ? 'BLOCKED' : 'UNBLOCKED'}.`);
+        } else {
+            alert("User record does not exist in the database.");
         }
-    } catch(e) { alert(e.message); }
+    } catch(e) { 
+        console.error(e);
+        alert("Error updating status: " + e.message); 
+    }
 };
