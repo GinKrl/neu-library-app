@@ -97,10 +97,19 @@ const submitBtn = document.getElementById('submit-btn');
 if(submitBtn) {
     submitBtn.addEventListener('click', async () => {
         if (!currentUser) return;
+        
+        // Check if they selected a User Type!
+        const selectedType = document.getElementById('userType').value;
+        if (!selectedType) {
+            alert("Please select a User Type (Student, Teacher, or Staff).");
+            return;
+        }
+
         try {
             await addDoc(collection(db, "visits"), {
                 userId: currentUser.uid,
                 email: currentUser.email,
+                userType: selectedType, // <--- Saves the new User Type here
                 purposeOfVisit: document.getElementById('purpose').value,
                 college: document.getElementById('college').value,
                 timestamp: serverTimestamp()
