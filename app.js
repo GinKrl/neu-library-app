@@ -21,6 +21,7 @@ const loginSection = document.getElementById('login-section');
 const formSection = document.getElementById('form-section');
 const successSection = document.getElementById('success-section');
 const adminLink = document.getElementById('admin-link'); 
+const adminLinkSuccess = document.getElementById('admin-link-success'); 
 let errorMessage = document.getElementById('error-message');
 let currentUser = null;
 
@@ -69,7 +70,11 @@ async function handleUserRouting(user) {
     currentUser = user;
     if(loginSection) loginSection.classList.add('hidden');
     if(formSection) formSection.classList.remove('hidden');
-    if (userRole === 'admin' && adminLink) adminLink.classList.remove('hidden');
+    
+    if (userRole === 'admin') {
+        if (adminLink) adminLink.classList.remove('hidden');
+        if (adminLinkSuccess) adminLinkSuccess.classList.remove('hidden');
+    }
 }
 
 onAuthStateChanged(auth, (user) => {
